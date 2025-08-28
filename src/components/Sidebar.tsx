@@ -35,7 +35,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
     }
   };
 
-  const formatDate = (timestamp: number) => {
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     const now = new Date();
