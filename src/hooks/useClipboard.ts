@@ -1,26 +1,64 @@
 import { useState, useEffect, useCallback } from 'react';
 import { ClipboardEntry } from '../types/clipboard';
-import { saveToStorage, loadFromStorage, generateId, generateTitle } from '../utils/storage';
+import { 
+  loadFromDatabase, 
+  saveToDatabase, 
+  deleteFromDatabase, 
+  clearAllFromDatabase, 
+  generateTitle 
+} from '../utils/storage';
+import { supabase } from '../lib/supabase';
 
 export const useClipboard = () => {
   const [entries, setEntries] = useState<ClipboardEntry[]>([]);
   const [currentContent, setCurrentContent] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [isPreviewMode, setIsPreviewMode] = useState<boolean>(true);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isSaving, setIsSaving] = useState<boolean>(false);
   const [isDarkMode, setIsDarkMode] = useState<boolean>(
     () => localStorage.getItem('dark-mode') === 'true' || false
   );
 
-  // Load data on mount
+  // 加载数据并设置实时监听
   useEffect(() => {
-    const savedEntries = loadFromStorage();
-    setEntries(savedEntries);
-    if (savedEntries.length > 0) {
-      setCurrentContent(savedEntries[0].content);
-    }
+    const loadInitialData = async () => {
+      setIsLoading(true);
+      const data = await loadFromDatabase();
+      setEntries(data);
+      if (data.length > 0) {
+        setCurrentContent(data[0].content);
+      }
+      setIsLoading(false);
+    };
+
+    loadInitialData();
+
+    // 设置实时监听
+    const subscription = supabase
+      .channel('clipboard_changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'clipboard_entries'
+        },
+        async (payload) => {
+          console.log('Real-time update:', payload);
+          // 重新加载数据
+          const updatedData = await loadFromDatabase();
+          setEntries(updatedData);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
 
-  // Auto-save current content
+  // 自动保存当前内容
   useEffect(() => {
     const autoSaveTimeout = setTimeout(() => {
       if (currentContent.trim()) {
@@ -31,7 +69,7 @@ export const useClipboard = () => {
     return () => clearTimeout(autoSaveTimeout);
   }, [currentContent]);
 
-  // Save dark mode preference
+  // 保存深色模式偏好
   useEffect(() => {
     localStorage.setItem('dark-mode', isDarkMode.toString());
     if (isDarkMode) {
@@ -42,37 +80,41 @@ export const useClipboard = () => {
   }, [isDarkMode]);
 
   const saveCurrentEntry = useCallback(() => {
-    if (!currentContent.trim()) return;
+    if (!currentContent.trim() || isSaving) return;
 
-    const newEntry: ClipboardEntry = {
-      id: generateId(),
+    setIsSaving(true);
+    
+    const entryData = {
       content: currentContent,
-      timestamp: Date.now(),
       title: generateTitle(currentContent),
+      user_id: null,
     };
 
-    setEntries(prevEntries => {
-      // Check if the content already exists as the first entry
-      if (prevEntries.length > 0 && prevEntries[0].content === currentContent) {
-        return prevEntries;
-      }
+    // 检查是否与最新条目内容相同
+    if (entries.length > 0 && entries[0].content === currentContent) {
+      setIsSaving(false);
+      return;
+    }
 
-      const updatedEntries = [newEntry, ...prevEntries.slice(0, 49)]; // Keep only latest 50
-      saveToStorage(updatedEntries);
-      return updatedEntries;
-    });
+    const savedEntry = await saveToDatabase(entryData);
+    if (savedEntry) {
+      // 数据会通过实时监听自动更新，这里不需要手动更新状态
+      console.log('Entry saved successfully');
+    }
+    
+    setIsSaving(false);
   }, [currentContent]);
 
   const loadEntry = useCallback((entry: ClipboardEntry) => {
     setCurrentContent(entry.content);
   }, []);
 
-  const deleteEntry = useCallback((entryId: string) => {
-    setEntries(prevEntries => {
-      const updatedEntries = prevEntries.filter(entry => entry.id !== entryId);
-      saveToStorage(updatedEntries);
-      return updatedEntries;
-    });
+  const deleteEntry = useCallback(async (entryId: string) => {
+    const success = await deleteFromDatabase(entryId);
+    if (success) {
+      // 数据会通过实时监听自动更新
+      console.log('Entry deleted successfully');
+    }
   }, []);
 
   const copyToClipboard = useCallback(async (content: string) => {
@@ -85,10 +127,13 @@ export const useClipboard = () => {
     }
   }, []);
 
-  const clearAll = useCallback(() => {
-    setEntries([]);
-    setCurrentContent('');
-    saveToStorage([]);
+  const clearAll = useCallback(async () => {
+    const success = await clearAllFromDatabase();
+    if (success) {
+      setCurrentContent('');
+      // 数据会通过实时监听自动更新
+      console.log('All entries cleared successfully');
+    }
   }, []);
 
   const filteredEntries = entries.filter(entry =>
@@ -102,6 +147,8 @@ export const useClipboard = () => {
     searchQuery,
     isPreviewMode,
     isDarkMode,
+    isLoading,
+    isSaving,
     setCurrentContent,
     setSearchQuery,
     setIsPreviewMode,

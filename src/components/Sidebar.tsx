@@ -36,7 +36,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   };
 
   const formatDate = (timestamp: number) => {
-    const date = new Date(timestamp);
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
     const now = new Date();
     const diffInMs = now.getTime() - date.getTime();
     const diffInDays = Math.floor(diffInMs / (1000 * 60 * 60 * 24));
@@ -102,7 +103,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       {entry.title}
                     </h3>
                     <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                      {formatDate(entry.timestamp)}
+                      {formatDate(entry.created_at)}
                     </p>
                     <p className="text-xs text-gray-600 dark:text-gray-300 mt-2 line-clamp-2">
                       {entry.content.substring(0, 100)}...

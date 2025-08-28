@@ -4,6 +4,7 @@ import { Clipboard, Moon, Sun, Save, Eye, Edit3 } from 'lucide-react';
 interface HeaderProps {
   isDarkMode: boolean;
   isPreviewMode: boolean;
+  isSaving?: boolean;
   onToggleDarkMode: () => void;
   onTogglePreviewMode: () => void;
   onSave: () => void;
@@ -12,6 +13,7 @@ interface HeaderProps {
 export const Header: React.FC<HeaderProps> = ({
   isDarkMode,
   isPreviewMode,
+  isSaving = false,
   onToggleDarkMode,
   onTogglePreviewMode,
   onSave,
@@ -36,8 +38,13 @@ export const Header: React.FC<HeaderProps> = ({
         <div className="flex items-center space-x-2">
           <button
             onClick={onSave}
-            className="p-2 rounded-lg bg-green-100 dark:bg-green-900 text-green-600 dark:text-green-400 hover:bg-green-200 dark:hover:bg-green-800 transition-colors"
-            title="保存当前内容"
+            disabled={isSaving}
+            className={`p-2 rounded-lg transition-colors ${
+              isSaving 
+                ? 'bg-yellow-100 dark:bg-yellow-900 text-yellow-600 dark:text-yellow-400' 
+                : 'bg-green-100 dark:bg-green-900 text-green-600 dark:text-green-400 hover:bg-green-200 dark:hover:bg-green-800'
+            } disabled:opacity-50 disabled:cursor-not-allowed`}
+            title={isSaving ? "正在保存..." : "保存当前内容"}
           >
             <Save className="w-5 h-5" />
           </button>

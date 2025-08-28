@@ -19,6 +19,8 @@ function App() {
     searchQuery,
     isPreviewMode,
     isDarkMode,
+    isLoading,
+    isSaving,
     setCurrentContent,
     setSearchQuery,
     setIsPreviewMode,
@@ -66,15 +68,22 @@ function App() {
   return (
     <div className={`min-h-screen ${isDarkMode ? 'dark' : ''}`}>
       <div className="min-h-screen bg-gray-100 dark:bg-gray-900 transition-colors">
+        {isLoading && (
+          <div className="fixed top-0 left-0 right-0 bg-blue-500 text-white text-center py-2 text-sm z-50">
+            正在加载数据...
+          </div>
+        )}
+        
         <Header
           isDarkMode={isDarkMode}
           isPreviewMode={isPreviewMode}
+          isSaving={isSaving}
           onToggleDarkMode={() => setIsDarkMode(!isDarkMode)}
           onTogglePreviewMode={() => setIsPreviewMode(!isPreviewMode)}
           onSave={handleSave}
         />
         
-        <div className="flex h-screen">
+        <div className={`flex h-screen ${isLoading ? 'pt-10' : ''}`}>
           <Sidebar
             entries={entries}
             searchQuery={searchQuery}
