@@ -96,13 +96,16 @@ export const useClipboard = () => {
       return;
     }
 
-    const savedEntry = await saveToDatabase(entryData);
-    if (savedEntry) {
-      // 数据会通过实时监听自动更新，这里不需要手动更新状态
-      console.log('Entry saved successfully');
-    }
-    
-    setIsSaving(false);
+    saveToDatabase(entryData).then((savedEntry) => {
+      if (savedEntry) {
+        // 数据会通过实时监听自动更新，这里不需要手动更新状态
+        console.log('Entry saved successfully');
+      }
+      setIsSaving(false);
+    }).catch((error) => {
+      console.error('Failed to save entry:', error);
+      setIsSaving(false);
+    });
   }, [currentContent]);
 
   const loadEntry = useCallback((entry: ClipboardEntry) => {
